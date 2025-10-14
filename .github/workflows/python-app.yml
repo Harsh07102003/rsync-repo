@@ -1,45 +1,69 @@
-name: Deploy FastAPI via Rsync & PM2
+name: Deploy FastAPI Backend to Private EC2 via Jump Host
 
 on:
   push:
     branches:
-      - main  # Trigger deployment on push to main branch
+      - main
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Checkout repository
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-      # 2️⃣ Start SSH agent and load private key
-      - name: Setup SSH agent
-        uses: webfactory/ssh-agent@v0.9.0
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
         with:
-          ssh-private-key: ${{ secrets.SECRET_KEY }}
+          python-version: '3.11'
 
-      # 3️⃣ Rsync code to private server via jump host
-      - name: Sync code to private server
-        env:
-          JUMP: ${{ secrets.JUMP }}
-          JUMP_USER: ubuntu
-          PRIVATE: ${{ secrets.PRIVATE }}
-          PRIVATE_USER: ubuntu
+      - name: Install Dependencies
         run: |
-          rsync -avz --delete \
-            -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -J $JUMP_USER@$JUMP" \
-            ./ $PRIVATE_USER@$PRIVATE:/home/$PRIVATE_USER/fastapi-app/
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
-      # 4️⃣ Restart FastAPI app with PM2
-      - name: Restart FastAPI app
-        env:
-          JUMP: ${{ secrets.JUMP }}
-          JUMP_USER: ubuntu
-          PRIVATE: ${{ secrets.PRIVATE }}
-          PRIVATE_USER: ubuntu
+      - name: Archive project files
         run: |
-          ssh -o StrictHostKeyChecking=no -J $JUMP_USER@$JUMP $PRIVATE_USER@$PRIVATE \
-          "cd /home/$PRIVATE_USER/fastapi-app && \
-           pm2 restart fastapi-app || pm2 start app/main.py --name fastapi-app --interpreter python3"
+          tar -czf app.tar.gz . --exclude=".git" --exclude="__pycache__" --exclude="venv"
+
+      - name: Copy project via jump host
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.JUMP_HOST }}
+          username: ${{ secrets.JUMP_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          proxy_host: ${{ secrets.PRIVATE_IP }}
+          proxy_username: ${{ secrets.PRIVATE_USER }}
+          proxy_key: ${{ secrets.SSH_KEY }}
+          source: "app.tar.gz"
+          target: "/tmp/app.tar.gz"
+
+      - name: Deploy on private EC2 via SSH
+        uses: appleboy/ssh-action@v1.1.0
+        with:
+          host: ${{ secrets.JUMP_HOST }}
+          username: ${{ secrets.JUMP_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          proxy_host: ${{ secrets.PRIVATE_IP }}
+          proxy_username: ${{ secrets.PRIVATE_USER }}
+          proxy_key: ${{ secrets.SSH_KEY }}
+          script: |
+            set -e
+            echo "=== Deploying FastAPI Backend ==="
+            mkdir -p /home/ubuntu/leadstream-backend
+            cd /home/ubuntu/leadstream-backend
+
+            echo "Extracting new code..."
+            tar -xzf /tmp/app.tar.gz -C /home/ubuntu/leadstream-backend --strip-components=1
+
+            echo "Installing dependencies..."
+            python3 -m venv venv
+            source venv/bin/activate
+            pip install -r requirements.txt
+
+            echo "Restarting backend using pm2..."
+            pm2 stop leadstream-backend || true
+            pm2 start "uvicorn app.main:app --host 0.0.0.0 --port 8000" --name leadstream-backend
+
+            echo "✅ Deployment Completed Successfully!"
