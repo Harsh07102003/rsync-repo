@@ -1,0 +1,81 @@
+name: Deploy  Backend to EC2
+
+on:
+  push:
+    branches:
+      - main   # trigger deploy on main branch
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+  #rsync is already there
+    steps:
+      # 1️⃣ Checkout repository
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          path: ./backend
+
+      # # 3️⃣ Install rsync & ssh
+      # - name: Install rsync & SSH client
+      #   run: |
+          # sudo apt-get update
+          # sudo apt-get install -y rsync openssh-client software-properties-common
+          # which rsync
+      - name: Setup SSH agent
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+
+      # 5️⃣ Rsync project to EC2
+      - name: Rsync code to EC2
+        run: |
+          rsync -avz --delete \
+            --exclude='.git/' \
+            --exclude='venv/' \
+            --exclude='.env' \
+            --exclude='deploy-tupri-backend.sh' \
+            -e "ssh -o StrictHostKeyChecking=no" \
+            ./backend/ ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:${{ secrets.REMOTE_PATH }}/
+
+
+      # 6️⃣ Setup Python venv & install dependencies on EC2
+      # - name: Setup Python venv & install requirements
+      #   env:
+      #     EC2_HOST: ${{ secrets.EC2_HOST }}
+      #     EC2_USER: ${{ secrets.EC2_USER }}
+      #     REMOTE_PATH: ${{ secrets.REMOTE_PATH }}
+      #   run: |
+      #     ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST "
+      #       cd $REMOTE_PATH
+      #       # ensure Python 3.11 installed (Ubuntu example)
+      #       sudo apt-get update
+      #       sudo add-apt-repository -y ppa:deadsnakes/ppa
+      #       sudo apt-get install -y python3.11 python3.11-venv python3.11-distutils
+      #       # create venv if not exists
+      #       python3.11 -m venv .venv || true
+      #       . .venv/bin/activate
+      #       python -m pip install --upgrade pip
+      #       if [ -f requirements.txt ]; then
+      #           pip install --no-cache-dir -r requirements.txt
+      #       fi
+      #     "
+
+      # # 7️⃣ Restart FastAPI app on EC2
+      # - name: Restart FastAPI app
+      #   env:
+      #     EC2_HOST: ${{ secrets.EC2_HOST }}
+      #     EC2_USER: ${{ secrets.EC2_USER }}
+      #     REMOTE_PATH: ${{ secrets.REMOTE_PATH }}
+      #   run: |
+      #     ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST "
+      #       cd $REMOTE_PATH
+      #       . .venv/bin/activate
+      #       # stop existing uvicorn process if running
+      #       pkill -f 'uvicorn' || true
+      #       # start FastAPI app in background on port 8000
+      #       nohup .venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000 > deploy.log 2>&1 &
+      #     "
+t
