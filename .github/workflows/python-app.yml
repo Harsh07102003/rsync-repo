@@ -9,22 +9,23 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
 
+  #rsync is already there
     steps:
-      # 1️⃣ Checkout repository
-      - name: Checkout repo
-        uses: actions/checkout@v4
+      # # 1️⃣ Checkout repository
+      # - name: Checkout repo
+      #   uses: actions/checkout@v4
 
-      # 3️⃣ Install rsync & ssh
-      - name: Install rsync & SSH client
-        run: |
+      # # 3️⃣ Install rsync & ssh
+      # - name: Install rsync & SSH client
+      #   run: |
           # sudo apt-get update
           # sudo apt-get install -y rsync openssh-client software-properties-common
-          which rsync
+          # which rsync
 
       # 5️⃣ Rsync project to EC2
       - name: Rsync code to EC2
         run: |
-          sudo rsync -avz --delete \
+          rsync -avz --delete \
             --exclude='.git/' \
             --exclude='venv/' \
             --exclude='.env' \
