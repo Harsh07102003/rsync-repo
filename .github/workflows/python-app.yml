@@ -29,7 +29,7 @@ jobs:
           PRIVATE_USER: ubuntu
         run: |
           rsync -avz --delete \
-            -e "ssh -o StrictHostKeyChecking=no -J $JUMP_USER@$JUMP" \
+            -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -J $JUMP_USER@$JUMP" \
             ./ $PRIVATE_USER@$PRIVATE:/home/$PRIVATE_USER/fastapi-app/
 
       # 4️⃣ Restart FastAPI app with PM2
