@@ -18,28 +18,28 @@ jobs:
       - name: Setup SSH agent
         uses: webfactory/ssh-agent@v0.7.2
         with:
-          ssh-private-key: ${{ secrets.SSH_KEY }}
+          SECRET_KEY: ${{ secrets.SECRET_KEY }}
 
       # 3️⃣ Rsync code to private server via jump host
       - name: Sync code to private server
         env:
-          JUMP_HOST: ${{ secrets.JUMP_HOST }}
-          JUMP_USER: ${{ secrets.JUMP_USER }}
-          PRIVATE_HOST: ${{ secrets.PRIVATE_HOST }}
-          PRIVATE_USER: ${{ secrets.PRIVATE_USER }}
+          JUMP: ${{ secrets.JUMP }}
+          JUMP_USER: ubuntu
+          PRIVATE: ${{ secrets.PRIVATE }}
+          PRIVATE_USER: ubuntu
         run: |
           rsync -avz --delete \
-            -e "ssh -o StrictHostKeyChecking=no -J $JUMP_USER@$JUMP_HOST" \
-            ./ $PRIVATE_USER@$PRIVATE_HOST:/home/$PRIVATE_USER/fastapi-app/
+            -e "ssh -o StrictHostKeyChecking=no -J $JUMP_USER@$JUMP" \
+            ./ $PRIVATE_USER@$PRIVATE:/home/$PRIVATE_USER/fastapi-app/
 
       # 4️⃣ Restart FastAPI app with PM2
       - name: Restart FastAPI app
         env:
-          JUMP_HOST: ${{ secrets.JUMP_HOST }}
-          JUMP_USER: ${{ secrets.JUMP_USER }}
-          PRIVATE_HOST: ${{ secrets.PRIVATE_HOST }}
-          PRIVATE_USER: ${{ secrets.PRIVATE_USER }}
+          JUMP: ${{ secrets.JUMP }}
+          JUMP_USER: ubuntu
+          PRIVATE: ${{ secrets.PRIVATE }}
+          PRIVATE_USER: ubuntu
         run: |
-          ssh -o StrictHostKeyChecking=no -J $JUMP_USER@$JUMP_HOST $PRIVATE_USER@$PRIVATE_HOST \
+          ssh -o StrictHostKeyChecking=no -J $JUMP_USER@$JUMP $PRIVATE_USER@$PRIVATE \
           "cd /home/$PRIVATE_USER/fastapi-app && \
            pm2 restart fastapi-app || pm2 start app/main.py --name fastapi-app --interpreter python3"
