@@ -1,82 +1,79 @@
-name: Deploy Tupri Backend to Public EC2
+name: Deploy Tupri Backend to EC2
 
 on:
   push:
     branches:
-      - main   # deploy on main branch
+      - main  # change to your deployment branch
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Checkout repo
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2️⃣ Setup Python 3.11
-      - name: Setup Python 3.11
+      - name: Set up Python 3.11
         uses: actions/setup-python@v4
         with:
-          python-version: 3.11
+          python-version: "3.11"
 
-      # 3️⃣ Install required tools
       - name: Install rsync and ssh client
         run: |
           sudo apt-get update
           sudo apt-get install -y rsync openssh-client software-properties-common
 
-      # 4️⃣ Test connection to EC2
-      - name: Test SSH connection
+      - name: Configure SSH
         env:
-          EC2_HOST: ${{ secrets.EC2_HOST }}
-          EC2_USER: ${{ vars.EC2_USER }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
         run: |
-          ssh -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST "echo 'Connection successful!'"
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
 
-      # 5️⃣ Sync code to EC2
-      - name: Sync code to EC2
+      - name: Rsync code to EC2
         env:
           EC2_HOST: ${{ secrets.EC2_HOST }}
-          EC2_USER: ${{ vars.EC2_USER }}
-          REMOTE_PATH: ${{ vars.REMOTE_PATH }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+          REMOTE_PATH: ${{ secrets.REMOTE_PATH }}
         run: |
-          ssh -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST "mkdir -p $REMOTE_PATH"
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST "mkdir -p $REMOTE_PATH"
           rsync -avz --delete \
             --exclude='.git/' \
             --exclude='venv/' \
             --exclude='.env' \
-            --exclude='deploy-tupri-backend.sh' \
+            --exclude='.github/' \
+            -e "ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no" \
             ./ $EC2_USER@$EC2_HOST:$REMOTE_PATH/
 
-      # 6️⃣ Setup Python venv & install dependencies
-      - name: Setup Python venv and install dependencies
+      - name: Install Python 3.11 and dependencies on EC2
         env:
           EC2_HOST: ${{ secrets.EC2_HOST }}
-          EC2_USER: ${{ vars.EC2_USER }}
-          REMOTE_PATH: ${{ vars.REMOTE_PATH }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+          REMOTE_PATH: ${{ secrets.REMOTE_PATH }}
         run: |
-          ssh -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST "
-            cd $REMOTE_PATH
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST "
             sudo apt-get update
             sudo add-apt-repository -y ppa:deadsnakes/ppa
-            sudo apt-get install -y python3.11 python3.11-venv python3.11-distutils
+            sudo apt-get install -y python3.11 python3.11-venv python3.11-distutils python3-pip
+            cd $REMOTE_PATH
             python3.11 -m venv .venv || true
             . .venv/bin/activate
             python -m pip install --upgrade pip
             if [ -f requirements.txt ]; then
-              pip install --no-cache-dir -r requirements.txt
+                pip install --no-cache-dir -r requirements.txt
             fi
           "
 
-      # 7️⃣ Restart FastAPI app
-      - name: Restart backend FastAPI
+      - name: Restart FastAPI backend
         env:
           EC2_HOST: ${{ secrets.EC2_HOST }}
-          EC2_USER: ${{ vars.EC2_USER }}
-          REMOTE_PATH: ${{ vars.REMOTE_PATH }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+          REMOTE_PATH: ${{ secrets.REMOTE_PATH }}
         run: |
-          ssh -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST "
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST "
             cd $REMOTE_PATH
             . .venv/bin/activate
             pkill -f 'uvicorn' || true
