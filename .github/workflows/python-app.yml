@@ -8,51 +8,25 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    env:
-      EC2_HOST: ${{ secrets.EC2_HOST }}
-      EC2_USER: ${{ secrets.EC2_USER }}
-      REMOTE_PATH: ${{ secrets.REMOTE_PATH }}
-
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
-        with:
-          path: ./backend
 
-      - name: Install rsync & ssh client
+      - name: Rsync to EC2
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          REMOTE_PATH: ${{ secrets.REMOTE_PATH }}
         run: |
-          sudo apt-get update
-          sudo apt-get install -y rsync openssh-client
-
-      # Write the private key to a file (and secure it)
-      - name: Save SSH private key
-        run: |
+          sudo apt-get update && sudo apt-get install -y rsync openssh-client
           mkdir -p ~/.ssh
-          # Write the key from the secret to a file
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          # Optionally add host to known_hosts to avoid host key prompt
-          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts || true
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/temp_key
+          chmod 600 ~/.ssh/temp_key
 
-      # Optional: also start ssh-agent and add the key (redundant but harmless)
-      - name: Start ssh-agent and add key
-        uses: webfactory/ssh-agent@v0.8.0
-        with:
-          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
-
-      - name: Test SSH access (debug)
-        run: |
-          echo "Trying SSH connection to $EC2_USER@$EC2_HOST..."
-          ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST "echo SSH_OK" || (echo "SSH FAILED"; exit 2)
-
-      - name: Rsync code to EC2
-        run: |
-          # Use explicit path to the checked-out folder to avoid cwd issues
-          SOURCE="$GITHUB_WORKSPACE/backend/"
           rsync -avz --delete \
             --exclude='.git/' \
             --exclude='venv/' \
             --exclude='.env' \
-            --exclude='deploy-tupri-backend.sh' \
-            -e "ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes" \
-            "$SOURCE" $EC2_USER@$EC2_HOST:$REMOTE_PATH/
+            -e "ssh -i ~/.ssh/temp_key -o StrictHostKeyChecking=no" \
+            ./ $EC2_USER@$EC2_HOST:$REMOTE_PATH/
