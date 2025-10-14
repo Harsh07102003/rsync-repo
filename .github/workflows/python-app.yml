@@ -1,0 +1,54 @@
+name: CI/CD FastAPI Deploy
+
+on:
+  push:
+    branches:
+      - main  # Trigger on push to main branch
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1️⃣ Checkout code
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # 2️⃣ Set up Python (optional if you want to run tests/build locally)
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      # 3️⃣ Install dependencies (optional if you want to run tests)
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # 4️⃣ Rsync to private server via jump host
+      - name: Sync code via jump server
+        env:
+          JUMP: ${{ secrets.JUMP }}
+          JUMP_USER: ubuntu
+          PRIVATE: ${{ secrets.PRIVATE }}
+          PRIVATE_USER: ubuntu
+          SECRET_KEY: ${{ secrets.SECRET_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+
+          rsync -avz -e "ssh -o StrictHostKeyChecking=no -J $JUMP_USER@$JUMP" \
+          ./ $PRIVATE_USER@$PRIVATE:/home/$PRIVATE_USER/fastapi-app
+
+      # 5️⃣ Restart app with pm2 on private server
+      - name: Restart FastAPI app via PM2
+        env:
+          JUMP: ${{ secrets.JUMP }}
+          JUMP_USER: ${{ secrets.JUMP_USER }}
+          PRIVATE: ${{ secrets.PRIVATE }}
+          PRIVATE_USER: ${{ secrets.PRIVATE_USER }}
+        run: |
+          ssh -o StrictHostKeyChecking=no -J $JUMP_USER@$JUMP $PRIVATE_USER@$PRIVATE \
+          "cd /home/$PRIVATE_USER/fastapi-app && pm2 restart fastapi-app || pm2 start app/main.py --name fastapi-app --interpreter python3"
