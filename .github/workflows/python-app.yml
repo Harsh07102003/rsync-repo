@@ -39,7 +39,7 @@ jobs:
           EC2_USER: ${{ secrets.EC2_USER }}
           REMOTE_PATH: ${{ secrets.REMOTE_PATH }}
         run: |
-          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST "mkdir -p $REMOTE_PATH"
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST "mkdir -p /home/ubuntu/tupri-backend"
           rsync -avz --delete \
             --exclude='.git/' \
             --exclude='venv/' \
