@@ -37,7 +37,7 @@ jobs:
             --exclude='venv/' \
             --exclude='.env' \
             --exclude='deploy-tupri-backend.sh' \
-            -e "ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no" \
+            -e "ssh -o StrictHostKeyChecking=no" \
             ./backend/ ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:${{ secrets.REMOTE_PATH }}/
 
 
