@@ -19,7 +19,7 @@ jobs:
         run: |
           # sudo apt-get update
           # sudo apt-get install -y rsync openssh-client software-properties-common
-          which 
+          which rsync
 
       # 5️⃣ Rsync project to EC2
       - name: Rsync code to EC2
