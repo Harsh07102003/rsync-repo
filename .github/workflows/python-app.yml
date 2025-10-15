@@ -14,14 +14,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Debug Secret Presence (Checking all as secrets)
+      - name: Debug Variables and Secrets Presence
         run: |
-          # Standardized to check EC2_USER as a secret
+          # Check EC2_USER as a variable
           if [ -z "${{ vars.EC2_USER }}" ]; then
-            echo "::error::EC2_USER secret is NOT set or is empty. Please check your GitHub Secrets."
+            echo "::error::EC2_USER variable is NOT set or is empty. Please check your repository or organization variables."
             exit 1
           else
-            echo "✅ EC2_USER secret is properly set (non-empty)."
+            echo "✅ EC2_USER variable is properly set (non-empty)."
           fi
           
           # NOTE: The host must still be fixed in your GitHub secrets!
@@ -48,9 +48,9 @@ jobs:
 
       - name: Test SSH Connection
         run: |
-          # Use secrets for both user and host for deployment commands
-          if [ -z "${{ secrets.EC2_USER }}" ] || [ -z "${{ secrets.EC2_HOST }}" ]; then
-            echo "::error::EC2_USER or EC2_HOST secret is empty. SSH command will fail."
+          # Use var for user and secret for host
+          if [ -z "${{ vars.EC2_USER }}" ] || [ -z "${{ secrets.EC2_HOST }}" ]; then
+            echo "::error::EC2_USER (var) or EC2_HOST (secret) is empty. SSH command will fail."
             exit 1
           fi
           ssh -i ~/.ssh/deploy_key.pem -o StrictHostKeyChecking=no \
@@ -58,7 +58,6 @@ jobs:
 
       - name: Create remote directory
         run: |
-          # Use secrets for user (fixed reference)
           ssh -i ~/.ssh/deploy_key.pem -o StrictHostKeyChecking=no \
             ${{ vars.EC2_USER }}@${{ secrets.EC2_HOST }} "mkdir -p ${{ vars.REMOTE_PATH }}"
 
@@ -74,13 +73,12 @@ jobs:
             --exclude='*.log' \
             -e "ssh -i ~/.ssh/deploy_key.pem -o StrictHostKeyChecking=no" \
             ./ \
-            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:${{ vars.REMOTE_PATH }}/
+            ${{ vars.EC2_USER }}@${{ secrets.EC2_HOST }}:${{ vars.REMOTE_PATH }}/
 
       - name: Install dependencies and restart application
         run: |
-          # Use secrets for user
           ssh -i ~/.ssh/deploy_key.pem -o StrictHostKeyChecking=no \
-            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+            ${{ vars.EC2_USER }}@${{ secrets.EC2_HOST }} '
             set -e # Exit immediately if any command fails
             
             cd ${{ vars.REMOTE_PATH }}
@@ -99,7 +97,7 @@ jobs:
             pm2 restart python-app || pm2 start app/main.py --name python-app --interpreter python3
             
             echo "Deployment commands executed."
-          EOF
+          '
 
       - name: Cleanup
         # Always run cleanup, even if previous steps fail
