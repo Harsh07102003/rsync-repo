@@ -140,6 +140,10 @@ jobs:
             set -e
             cd ${{ vars.REMOTE_PATH }}
 
+            # Source the user's profile to ensure the PATH is set correctly for npm global packages.
+            # This makes sure that 'pm2' can be found.
+            source ~/.profile || true
+
             echo "Restarting application with system PM2..."
             # Find the full path to the pm2 executable. This is more reliable than relying on the shell's PATH.
             PM2_PATH=$(which pm2)
