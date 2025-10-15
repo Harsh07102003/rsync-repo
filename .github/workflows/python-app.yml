@@ -118,7 +118,6 @@ jobs:
             pm2 save
             
             echo "Deployment commands executed."
-          '
           
           
 
