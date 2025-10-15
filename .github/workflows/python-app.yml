@@ -32,37 +32,16 @@ jobs:
             echo "✅ EC2_HOST secret is properly set (non-empty and not '***')."
           fi
 
-      - name: Setup SSH
+      - name: Setup SSH Agent
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
+
+      - name: Add EC2 host to known_hosts
         run: |
-          mkdir -p ~/.ssh
-          # Use secrets for key
-          echo "${{ secrets.EC2_SSH_KEY }}" | tr -d '\r' > ~/.ssh/deploy_key.pem
-          chmod 600 ~/.ssh/deploy_key.pem
-          
-          # Use the EC2_HOST secret
-          if [ -z "${{ secrets.EC2_HOST }}" ]; then
-            echo "::error::EC2_HOST secret is empty. Cannot perform ssh-keyscan."
-            exit 1
-          fi
+          # This prevents the interactive "Are you sure you want to continue connecting?" prompt.
           ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
 
-      - name: Verify and Configure SSH on EC2
-        run: |
-          # This step ensures the public key is in authorized_keys and permissions are correct.
-          # It requires a passwordless sudo setup for the EC2_USER, which is standard on most AMIs.
-          # Generate the public key from the private key provided.
-          ssh-keygen -y -f ~/.ssh/deploy_key.pem > ~/.ssh/deploy_key.pub
-          PUB_KEY=$(cat ~/.ssh/deploy_key.pub)
-
-          ssh -i ~/.ssh/deploy_key.pem -o StrictHostKeyChecking=no \
-            ${{ vars.EC2_USER }}@${{ secrets.EC2_HOST }} "
-            mkdir -p ~/.ssh && chmod 700 ~/.ssh
-            touch ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys
-            if ! grep -q \"$PUB_KEY\" ~/.ssh/authorized_keys; then
-              echo '$PUB_KEY' >> ~/.ssh/authorized_keys
-              echo '✅ Public key added to authorized_keys.'
-            fi
-          "
       - name: Test SSH Connection
         run: |
           # Use var for user and secret for host
@@ -70,12 +49,12 @@ jobs:
             echo "::error::EC2_USER (var) or EC2_HOST (secret) is empty. SSH command will fail."
             exit 1
           fi
-          ssh -i ~/.ssh/deploy_key.pem -o StrictHostKeyChecking=no \
+          ssh -o StrictHostKeyChecking=no \
             ${{ vars.EC2_USER }}@${{ secrets.EC2_HOST }} "echo 'SSH connection successful!'"
 
       - name: Create remote directory
         run: |
-          ssh -i ~/.ssh/deploy_key.pem -o StrictHostKeyChecking=no \
+          ssh -o StrictHostKeyChecking=no \
             ${{ vars.EC2_USER }}@${{ secrets.EC2_HOST }} "mkdir -p ${{ vars.REMOTE_PATH }}"
 
       - name: Sync code to EC2 using rsync
@@ -88,13 +67,13 @@ jobs:
             --exclude='.env' \
             --exclude='.github/' \
             --exclude='*.log' \
-            -e "ssh -i ~/.ssh/deploy_key.pem -o StrictHostKeyChecking=no" \
+            -e "ssh -o StrictHostKeyChecking=no" \
             ./ \
             ${{ vars.EC2_USER }}@${{ secrets.EC2_HOST }}:${{ vars.REMOTE_PATH }}/
 
       - name: Install dependencies and restart application
         run: |
-          ssh -i ~/.ssh/deploy_key.pem -o StrictHostKeyChecking=no \
+          ssh -o StrictHostKeyChecking=no \
             ${{ vars.EC2_USER }}@${{ secrets.EC2_HOST }} '
             set -e # Exit immediately if any command fails
             
@@ -120,8 +99,7 @@ jobs:
         # Always run cleanup, even if previous steps fail
         if: always()
         run: |
-          # Remove the private key from the runner environment
-          rm -f ~/.ssh/deploy_key.pem
+          # The ssh-agent action handles cleanup automatically.
           rm -f ~/.ssh/known_hosts
 
       - name: Deployment Status
