@@ -137,27 +137,30 @@ jobs:
 
       - name: 3. Restart Application with PM2 on EC2
         run: |
-          ssh -o StrictHostKeyChecking=no ${{ vars.EC2_USER }}@${{ secrets.EC2_HOST }} "bash -lc '
-              set -e # Exit immediately if any command fails
-              cd \"${{ vars.REMOTE_PATH }}\"
+          ssh -o StrictHostKeyChecking=no ${{ vars.EC2_USER }}@${{ secrets.EC2_HOST }} <<'SSH'
+            set -e
 
-              echo \"Restarting application with PM2...\"
+            # go to project dir (the GitHub Actions expression above is expanded before ssh runs)
+            cd "${{ vars.REMOTE_PATH }}"
 
-              # First, delete the old process definition to ensure a clean start.
-              pm2 delete python-app || true
+            echo "Restarting application with PM2..."
 
-              # Start the app using the absolute path to the uvicorn executable.
-              # The module path 'app.main:app' is correct because we are running from the project root.
-              UVICORN_PATH=\"$(pwd)/.venv/bin/uvicorn\"
-              echo \"Using uvicorn executable at: \$UVICORN_PATH\"
-              
-              pm2 start \"\$UVICORN_PATH\" --name \"python-app\" -- app.main:app --host 0.0.0.0 --port 8000
+            # delete old process (ignore error if not present)
+            pm2 delete python-app || true
 
-              # Save the PM2 process list to resurrect on reboot
-              pm2 save
+            # find uvicorn inside the project's venv
+            UVICORN_PATH="$(pwd)/.venv/bin/uvicorn" # Absolute path to uvicorn executable
+            echo "Using uvicorn executable at: $UVICORN_PATH"
 
-              echo \"Deployment commands executed.\"
-            '"
+            # Try to restart; if it doesn't exist, start it.
+            # Note: `--` separates pm2 options from the process args (app.main:app etc).
+            pm2 start "$UVICORN_PATH" --name "python-app" -- app.main:app --host 0.0.0.0 --port 8000
+
+            # Save process list so pm2 can resurrect on reboot
+            pm2 save
+
+            echo "Deployment commands executed."
+          SSH
 
       - name: 4. Verify Deployment Health
         run: |
