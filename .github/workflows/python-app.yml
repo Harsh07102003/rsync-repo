@@ -38,36 +38,37 @@ jobs:
 
 
           echo "Installing dependencies and restarting app with PM2..."
-          ssh -i private_key.pem -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST << 'EOF'
-            set -e
-            cd $REMOTE_PATH
+          ssh -i private_key.pem -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST << EOF
+          set -e
+          cd $REMOTE_PATH
 
-            # Ensure Python 3.11 and pm2 are installed
-            sudo apt-get update -y
-            sudo apt-get install -y python3.11 python3.11-venv python3-pip
+          # Ensure Python 3.11 and pm2 are installed
+          sudo apt-get update -y
+          sudo apt-get install -y python3.11 python3.11-venv python3-pip nodejs npm
 
-            # Setup virtual environment if not exists
-            if [ ! -d "venv" ]; then
-              python3.11 -m venv venv
-            fi
+          # Setup virtual environment if not exists
+          if [ ! -d "venv" ]; then
+            python3.11 -m venv venv
+          fi
 
-            source venv/bin/activate
-            pip install --upgrade pip
-            pip install -r requirements.txt
+          source venv/bin/activate
+          pip install --upgrade pip
+          pip install -r requirements.txt
 
-            # Install PM2 globally if missing
-            if ! command -v pm2 &> /dev/null; then
-              sudo npm install -g pm2
-            fi
+          # Install PM2 globally if missing
+          if ! command -v pm2 &> /dev/null; then
+            sudo npm install -g pm2
+          fi
 
-            # Restart or start FastAPI app with PM2
-            APP_NAME="tupri-backend"
-            if pm2 list | grep -q "$APP_NAME"; then
-              pm2 restart "$APP_NAME"
-            else
-              pm2 start "venv/bin/python" --name "$APP_NAME" -- -m uvicorn app.main:app --host 0.0.0.0 --port 8000
-            fi
+          # Restart or start FastAPI app with PM2
+          APP_NAME="tupri-backend"
+          if pm2 list | grep -q "$APP_NAME"; then
+            pm2 restart "$APP_NAME"
+          else
+            pm2 start "venv/bin/python" --name "$APP_NAME" -- -m uvicorn app.main:app --host 0.0.0.0 --port 8000
+          fi
 
-            pm2 save
-            echo "✅ Deployment successful!"
+          pm2 save
+          echo "✅ Deployment successful!"
           EOF
+
