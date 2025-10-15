@@ -92,22 +92,24 @@ jobs:
             
             # Activate virtual environment or create if doesn't exist
             if [ ! -d "venv" ]; then
+              echo "Creating Python virtual environment..."
               python3 -m venv venv
             fi
-            source venv/bin/activate
             
             # Install/update dependencies
-            pip install --upgrade pip
-            pip install -r requirements.txt
-
+            echo "Installing/updating dependencies..."
+            venv/bin/pip install --upgrade pip
+            venv/bin/pip install -r requirements.txt
             
-      - name : Restart application using PM2 (or systemd)
-        run: | 
-            # Restart application using PM2 (or systemd)
-            pm2 restart python-app || pm2 start venv/bin/python --name python-app -- -m uvicorn app.main:app --host 0.0.0.0 --port 8000
+            # Use system PM2 to start/restart the app with the venv python interpreter
+            # This avoids issues with activating the venv in a non-interactive shell.
+            echo "Restarting application with PM2..."
+            pm2 restart python-app || pm2 start "venv/bin/python" --name "python-app" -- -m uvicorn app.main:app --host 0.0.0.0 --port 8000
+            
+            # Save the PM2 process list to resurrect on reboot
             pm2 save
             echo "Deployment commands executed."
-          
+          '
 
       - name: Cleanup
         # Always run cleanup, even if previous steps fail
