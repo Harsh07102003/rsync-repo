@@ -82,28 +82,39 @@ jobs:
             ./ \
             ${{ vars.EC2_USER }}@${{ secrets.EC2_HOST }}:${{ vars.REMOTE_PATH }}/
 
-      # - name: Install dependencies and restart application
-      #   run: |
-      #     ssh -o StrictHostKeyChecking=no \
-      #       ${{ vars.EC2_USER }}@${{ secrets.EC2_HOST }} '
-      #       set -e # Exit immediately if any command fails
+      - name: Install dependencies and restart application
+        run: |
+          ssh -o StrictHostKeyChecking=no \
+            ${{ vars.EC2_USER }}@${{ secrets.EC2_HOST }} '
+            set -e # Exit immediately if any command fails
             
-      #       cd ${{ vars.REMOTE_PATH }}
+            cd ${{ vars.REMOTE_PATH }}
             
-      #       # Activate virtual environment or create if doesn't exist
-      #       if [ ! -d "venv" ]; then
-      #         python3 -m venv venv
-      #       fi
-      #       source venv/bin/activate
+            # Activate virtual environment or create if doesn't exist
+            if [ ! -d "venv" ]; then
+              python3 -m venv venv
+            fi
+            source venv/bin/activate
+
+            python -m pip install --upgrade pip
+            if [ -f requirements.txt ]; then
+              pip install --no-cache-dir -r requirements.txt
+            fi
+
+            # Check if pm2 is installed
+            if ! command -v pm2 >/dev/null 2>&1; then
+              echo "PM2 not found. Installing globally..."
+              npm install -g pm2
+            fi
             
-      #       # Install/update dependencies
-      #       pip install --upgrade pip
-      #       pip install -r requirements.txt
+            # Install/update dependencies
+            pip install --upgrade pip
+            pip install -r requirements.txt
             
-      #       # Restart application using PM2 (or systemd)
-      #       pm2 restart python-app || pm2 start app/main.py --name python-app --interpreter python3
+            # Restart application using PM2 (or systemd)
+            pm2 restart python-app || pm2 start app/main.py --name python-app --interpreter python3
             
-      #       echo "Deployment commands executed."
+            echo "Deployment commands executed."
           
 
       - name: Cleanup
