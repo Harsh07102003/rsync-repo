@@ -72,6 +72,7 @@ jobs:
         run: |
           rsync -avz --delete \
             --exclude='.git/' \
+            --exclude='.venv/' \
             --exclude='venv/' \
             --exclude='__pycache__/' \
             --exclude='*.pyc' \
@@ -136,31 +137,21 @@ jobs:
       - name: 3. Restart Application with PM2 on EC2
         run: |
           ssh -o StrictHostKeyChecking=no \
-            ${{ vars.EC2_USER }}@${{ secrets.EC2_HOST }} '
-            set -e
-            cd ${{ vars.REMOTE_PATH }}
+            ${{ vars.EC2_USER }}@${{ secrets.EC2_HOST }} "bash -lc '
+              set -e # Exit immediately if any command fails
+              cd ${{ vars.REMOTE_PATH }}
 
-            # Source the user's profile to ensure the PATH is set correctly for npm global packages.
-            # This makes sure that 'pm2' can be found.
-            source ~/.profile || true
+              echo \"Restarting application with system PM2...\"
+              # The login shell (-l) ensures that the PATH is set correctly, so 'pm2' can be found.
+              
+              # Use '\''reload'\'' for zero-downtime reloads. If it fails (e.g., first deploy), '\''start'\'' the uvicorn executable from the venv.
+              # The arguments for uvicorn must be passed after the '\''--'\''.
+              pm2 reload python-app --update-env || pm2 start .venv/bin/uvicorn --name \"python-app\" -- app.main:app --host 0.0.0.0 --port 8000
 
-            echo "Restarting application with system PM2..."
-            # Find the full path to the pm2 executable. This is more reliable than relying on the shell's PATH.
-            PM2_PATH=$(which pm2)
-            if [ -z "$PM2_PATH" ]; then
-              echo "::error::pm2 executable not found on the remote server!"
-              echo "$PM2_PATH"
-              exit 1
-            fi
-
-            # Use 'reload' for zero-downtime reloads. If it fails (e.g., first deploy), 'start' the uvicorn executable from the venv.
-            # The arguments for uvicorn must be passed after the '--'.
-            $PM2_PATH reload python-app --update-env || $PM2_PATH start ".venv/bin/uvicorn" --name "python-app" -- app.main:app --host 0.0.0.0 --port 8000
-
-            # Save the PM2 process list to resurrect on reboot
-            $PM2_PATH save
-            echo "Deployment commands executed."
-          '
+              # Save the PM2 process list to resurrect on reboot
+              pm2 save
+              echo \"Deployment commands executed.\"
+            '"
 
       - name: 4. Verify Deployment Health
         run: |
