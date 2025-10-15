@@ -108,8 +108,7 @@ jobs:
             fi
             
             # Restart application using PM2 (or systemd)
-            # pm2 restart python-app || pm2 start app/main.py --name python-app --interpreter python3
-            pm2 restart python-app || pm2 start venv/bin/python3 --name python-app -- -m uvicorn app/main.py --interpreter python3
+            pm2 restart python-app || pm2 start app/main.py --name python-app --interpreter python3
             
             echo "Deployment commands executed."
           
