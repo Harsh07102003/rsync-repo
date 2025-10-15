@@ -153,7 +153,7 @@ jobs:
               UVICORN_PATH=$(pwd)/.venv/bin/uvicorn
               echo "Using uvicorn executable at: $UVICORN_PATH"
               
-              pm2 restart python-app || pm2 start $UVICORN_PATH --name \"python-app\" -- app.main:app --host 0.0.0.0 --port 8000
+              pm2 restart python-app --update-env || pm2 start $UVICORN_PATH --name \"python-app\" -- app.main:app --host 0.0.0.0 --port 8000
 
               # Save the PM2 process list to resurrect on reboot
               pm2 save
