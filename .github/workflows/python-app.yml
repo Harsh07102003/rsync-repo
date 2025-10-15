@@ -122,9 +122,10 @@ jobs:
             cd ${{ vars.REMOTE_PATH }}
 
             # Create virtual environment if it does not exist
-             echo "Creating Python virtual environment..."
-             python3.11 -m venv .venv
-
+            if [ ! -d ".venv" ]; then
+              echo "Creating Python virtual environment..."
+              python3.11 -m venv .venv
+            fi
 
             # Install/update dependencies
             echo "Installing/updating dependencies..."
@@ -144,9 +145,12 @@ jobs:
               echo \"Restarting application with system PM2...\"
               # The login shell (-l) ensures that the PATH is set correctly, so 'pm2' can be found.
               
-              # Use '\''reload'\'' for zero-downtime reloads. If it fails (e.g., first deploy), '\''start'\'' the uvicorn executable from the venv.
-              # The arguments for uvicorn must be passed after the '\''--'\''.
-              pm2 reload python-app --update-env || pm2 start .venv/bin/uvicorn --name \"python-app\" -- app.main:app --host 0.0.0.0 --port 8000
+              # First, delete the old process definition to ensure a clean start.
+              pm2 delete python-app || true
+              
+              # Start the app using the absolute path to the uvicorn executable.
+              UVICORN_PATH=$(pwd)/.venv/bin/uvicorn
+              pm2 start $UVICORN_PATH --name \"python-app\" -- app.main:app --host 0.0.0.0 --port 8000
 
               # Save the PM2 process list to resurrect on reboot
               pm2 save
