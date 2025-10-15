@@ -145,12 +145,15 @@ jobs:
               echo \"Restarting application with system PM2...\"
               # The login shell (-l) ensures that the PATH is set correctly, so 'pm2' can be found.
               
+              # Use an absolute path for the executable to ensure PM2 finds it correctly.
               # First, delete the old process definition to ensure a clean start.
               pm2 delete python-app || true
               
               # Start the app using the absolute path to the uvicorn executable.
               UVICORN_PATH=$(pwd)/.venv/bin/uvicorn
-              pm2 start $UVICORN_PATH --name \"python-app\" -- app.main:app --host 0.0.0.0 --port 8000
+              echo "Using uvicorn executable at: $UVICORN_PATH"
+              
+              pm2 restart python-app || pm2 start $UVICORN_PATH --name \"python-app\" -- app.main:app --host 0.0.0.0 --port 8000
 
               # Save the PM2 process list to resurrect on reboot
               pm2 save
