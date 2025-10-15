@@ -25,7 +25,7 @@ jobs:
         run: |
           sudo apt-get update && sudo apt-get install -y rsync openssh-client
           mkdir -p ~/.ssh
-          echo "$EC2_SSH_KEY" > ~/.ssh/temp_key
+          echo "$EC2_SSH_KEY" | tr -d '\r' > ~/.ssh/temp_key
           chmod 600 ~/.ssh/temp_key
 
           echo "Syncing code to EC2..."
