@@ -14,6 +14,25 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Debug Secret Presence
+        run: |
+          # Check if EC2_USER is set
+          if [ -z "${{ secrets.EC2_USER }}" ]; then
+            echo "::error::EC2_USER secret is NOT set or is empty."
+            exit 1
+          else
+            echo "✅ EC2_USER secret is properly set (non-empty)."
+          fi
+          
+          # Check if EC2_HOST is set AND is not the literal placeholder '***'
+          if [ -z "${{ secrets.EC2_HOST }}" ] || [ "${{ secrets.EC2_HOST }}" = "***" ]; then
+            echo "::error::EC2_HOST secret is NOT set, is empty, or is the placeholder '***'."
+            exit 1
+          else
+            echo "✅ EC2_HOST secret is properly set (non-empty and not '***')."
+          fi
+
+
       - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
