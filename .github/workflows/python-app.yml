@@ -108,8 +108,8 @@ jobs:
             fi
             
             # Restart application using PM2 (or systemd)
-            pm2 restart python-app || pm2 start uvicorn --name python-app --interpreter python3 -- app/main.py --host 0.0.0.0 --port 8000
-            pm2 save
+            /usr/local/bin/pm2 restart python-app || /usr/local/bin/pm2 start uvicorn --name python-app --interpreter python3 -- app/main.py --host 0.0.0.0 --port 8000
+            /usr/local/bin/pm2 save
             echo "Deployment commands executed."
           
 
