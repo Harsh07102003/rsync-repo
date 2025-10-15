@@ -121,15 +121,15 @@ jobs:
             cd ${{ vars.REMOTE_PATH }}
 
             # Create virtual environment if it does not exist
-            if [ ! -d "venv" ]; then
+            if [ ! -d ".venv" ]; then
               echo "Creating Python virtual environment..."
-              python3.11 -m venv venv
+              python3.11 -m venv .venv
             fi
 
             # Install/update dependencies
             echo "Installing/updating dependencies..."
-            venv/bin/pip install --upgrade pip
-            venv/bin/pip install -r requirements.txt
+            .venv/bin/pip install --upgrade pip
+            .venv/bin/pip install -r requirements.txt
             echo "Python environment is ready."
           '
 
@@ -153,7 +153,7 @@ jobs:
             fi
 
             # Use 'reload' for zero-downtime reloads, and fallback to 'start' if the app isn't running yet.
-            $PM2_PATH reload python-app --update-env || $PM2_PATH start "venv/bin/python" --name "python-app" -- -m uvicorn app.main:app --host 0.0.0.0 --port 8000
+            $PM2_PATH reload python-app --update-env || $PM2_PATH start ".venv/bin/python" --name "python-app" --interpreter python3.11 -- -m uvicorn app.main:app --host 0.0.0.0 --port 8000
 
             # Save the PM2 process list to resurrect on reboot
             $PM2_PATH save
