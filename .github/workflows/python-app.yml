@@ -152,8 +152,8 @@ jobs:
               exit 1
             fi
 
-            # Use the system-wide PM2 to run the app with the Python interpreter from the project's venv.
-            $PM2_PATH restart python-app || $PM2_PATH start "venv/bin/python" --name "python-app" -- -m uvicorn app.main:app --host 0.0.0.0 --port 8000
+            # Use 'reload' for zero-downtime reloads, and fallback to 'start' if the app isn't running yet.
+            $PM2_PATH reload python-app --update-env || $PM2_PATH start "venv/bin/python" --name "python-app" -- -m uvicorn app.main:app --host 0.0.0.0 --port 8000
 
             # Save the PM2 process list to resurrect on reboot
             $PM2_PATH save
