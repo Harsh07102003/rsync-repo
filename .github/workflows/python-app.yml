@@ -3,7 +3,7 @@ name: Deploy Python App to EC2 using PM2
 on:
   push:
     branches:
-      - main  # deploys when main branch is updated
+      - main
 
 jobs:
   deploy:
@@ -23,10 +23,14 @@ jobs:
           EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
           REMOTE_PATH: ${{ secrets.REMOTE_PATH }}
         run: |
-          echo "$EC2_SSH_KEY" > private_key.pem
+          # Save SSH key
+          echo "$EC2_SSH_KEY" | tr -d '\r' > private_key.pem
           chmod 600 private_key.pem
 
-          echo "Syncing code to EC2..."
+          echo "🔹 Testing SSH connection..."
+          ssh -i private_key.pem -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST "echo '✅ SSH connected successfully'"
+
+          echo "🔹 Syncing code to EC2..."
           rsync -avz --delete \
             --exclude='.git/' \
             --exclude='venv/' \
@@ -35,16 +39,14 @@ jobs:
             -e "ssh -i private_key.pem -o StrictHostKeyChecking=no" \
             ./ $EC2_USER@$EC2_HOST:$REMOTE_PATH
 
-          echo "Installing dependencies and restarting app with PM2..."
+          echo "🔹 Installing dependencies and restarting app with PM2..."
           ssh -i private_key.pem -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST << 'EOF'
             set -e
             cd $REMOTE_PATH
 
-            # Ensure Python 3.11 and pm2 are installed
             sudo apt-get update -y
-            sudo apt-get install -y python3.11 python3.11-venv python3-pip
+            sudo apt-get install -y python3.11 python3.11-venv python3-pip nodejs npm
 
-            # Setup virtual environment if not exists
             if [ ! -d "venv" ]; then
               python3.11 -m venv venv
             fi
@@ -53,12 +55,10 @@ jobs:
             pip install --upgrade pip
             pip install -r requirements.txt
 
-            # Install PM2 globally if missing
             if ! command -v pm2 &> /dev/null; then
               sudo npm install -g pm2
             fi
 
-            # Restart or start FastAPI app with PM2
             APP_NAME="tupri-backend"
             if pm2 list | grep -q "$APP_NAME"; then
               pm2 restart "$APP_NAME"
