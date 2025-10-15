@@ -1,32 +1,27 @@
-name: Deploy Python App to EC2 using PM2
+name: Deploy Python App to EC2
 
 on:
   push:
     branches:
-<<<<<<< Updated upstream
       - main
   workflow_dispatch:
-=======
-      - main  # deploys when main branch is updated
->>>>>>> Stashed changes
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
+    
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v4
 
-<<<<<<< Updated upstream
-      - name: Debug Secret Presence (Checking all as secrets)
+      - name: Debug Variables and Secrets Presence
         run: |
-          # Standardized to check EC2_USER as a secret
-          if [ -z "${{ secrets.EC2_USER }}" ]; then
-            echo "::error::EC2_USER secret is NOT set or is empty. Please check your GitHub Secrets."
+          # Check EC2_USER as a variable
+          if [ -z "${{ vars.EC2_USER }}" ]; then
+            echo "::error::EC2_USER variable is NOT set or is empty. Please check your repository or organization variables."
             exit 1
           else
-            echo "✅ EC2_USER secret is properly set (non-empty)."
+            echo "✅ EC2_USER variable is properly set (non-empty)."
           fi
           
           # NOTE: The host must still be fixed in your GitHub secrets!
@@ -37,129 +32,89 @@ jobs:
             echo "✅ EC2_HOST secret is properly set (non-empty and not '***')."
           fi
 
-      - name: Setup SSH
-        run: |
-          mkdir -p ~/.ssh
-          # Use secrets for key
-          echo "${{ secrets.EC2_SSH_KEY }}" | tr -d '\r' > ~/.ssh/deploy_key.pem
-          chmod 600 ~/.ssh/deploy_key.pem
-          
-          # Use the EC2_HOST secret
-          if [ -z "${{ secrets.EC2_HOST }}" ]; then
-            echo "::error::EC2_HOST secret is empty. Cannot perform ssh-keyscan."
+          if [ -z "${{ secrets.EC2_SSH_KEY }}" ]; then
+            echo "::error::EC2_SSH_KEY secret is NOT set or is empty. Please check your GitHub Secrets."
             exit 1
+          else
+            echo "✅ EC2_SSH_KEY secret is present."
           fi
-          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
-=======
-      - name: Install rsync and ssh
-        run: sudo apt-get update && sudo apt-get install -y rsync openssh-client
->>>>>>> Stashed changes
 
-      - name: Deploy to EC2
-        env:
-          EC2_HOST: ${{ secrets.EC2_HOST }}
-          EC2_USER: ${{ secrets.EC2_USER }}
-          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
-          REMOTE_PATH: ${{ secrets.REMOTE_PATH }}
+          echo "EC2_HOST: ${{ secrets.EC2_HOST }}"
+          echo "EC2_USER: ${{ vars.EC2_USER }}"
+          echo "REMOTE_PATH: ${{ vars.REMOTE_PATH }}"
+
+      - name: Setup SSH Agent
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
+
+      - name: Add EC2 host to known_hosts
         run: |
-<<<<<<< Updated upstream
-          # Use secrets for both user and host for deployment commands
-          if [ -z "${{ secrets.EC2_USER }}" ] || [ -z "${{ secrets.EC2_HOST }}" ]; then
-            echo "::error::EC2_USER or EC2_HOST secret is empty. SSH command will fail."
+          # This prevents the interactive "Are you sure you want to continue connecting?" prompt.
+          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Test SSH Connection
+        run: |
+          # Use var for user and secret for host
+          if [ -z "${{ vars.EC2_USER }}" ] || [ -z "${{ secrets.EC2_HOST }}" ]; then
+            echo "::error::EC2_USER (var) or EC2_HOST (secret) is empty. SSH command will fail."
             exit 1
           fi
-          ssh -i ~/.ssh/deploy_key.pem -o StrictHostKeyChecking=no \
-            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "echo 'SSH connection successful!'"
+          ssh -o StrictHostKeyChecking=no \
+            ${{ vars.EC2_USER }}@${{ secrets.EC2_HOST }} "echo 'SSH connection successful!'"
 
       - name: Create remote directory
         run: |
-          # Use secrets for user
-          ssh -i ~/.ssh/deploy_key.pem -o StrictHostKeyChecking=no \
-            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "mkdir -p ${{ vars.REMOTE_PATH }}"
+          ssh -o StrictHostKeyChecking=no \
+            ${{ vars.EC2_USER }}@${{ secrets.EC2_HOST }} "mkdir -p ${{ vars.REMOTE_PATH }}"
 
       - name: Sync code to EC2 using rsync
         run: |
-=======
-          echo "$EC2_SSH_KEY" > private_key.pem
-          chmod 600 private_key.pem
-
-          echo "Syncing code to EC2..."
->>>>>>> Stashed changes
           rsync -avz --delete \
             --exclude='.git/' \
             --exclude='venv/' \
-            --exclude='.github/' \
             --exclude='__pycache__/' \
-            -e "ssh -i private_key.pem -o StrictHostKeyChecking=no" \
-            ./ $EC2_USER@$EC2_HOST:$REMOTE_PATH
+            --exclude='*.pyc' \
+            --exclude='.env' \
+            --exclude='.github/' \
+            --exclude='*.log' \
+            -e "ssh -o StrictHostKeyChecking=no" \
+            ./ \
+            ${{ vars.EC2_USER }}@${{ secrets.EC2_HOST }}:${{ vars.REMOTE_PATH }}/
 
-<<<<<<< Updated upstream
-      - name: Install dependencies and restart application
-        run: |
-          # Use secrets for user
-          ssh -i ~/.ssh/deploy_key.pem -o StrictHostKeyChecking=no \
-            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
-            set -e # Exit immediately if any command fails
+      # - name: Install dependencies and restart application
+      #   run: |
+      #     ssh -o StrictHostKeyChecking=no \
+      #       ${{ vars.EC2_USER }}@${{ secrets.EC2_HOST }} '
+      #       set -e # Exit immediately if any command fails
             
-            cd ${{ vars.REMOTE_PATH }}
+      #       cd ${{ vars.REMOTE_PATH }}
             
-            # Activate virtual environment or create if doesn't exist
-=======
-          echo "Installing dependencies and restarting app with PM2..."
-          ssh -i private_key.pem -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST << 'EOF'
-            set -e
-            cd $REMOTE_PATH
-
-            # Ensure Python 3.11 and pm2 are installed
-            sudo apt-get update -y
-            sudo apt-get install -y python3.11 python3.11-venv python3-pip
-
-            # Setup virtual environment if not exists
->>>>>>> Stashed changes
-            if [ ! -d "venv" ]; then
-              python3.11 -m venv venv
-            fi
-
-            source venv/bin/activate
-            pip install --upgrade pip
-            pip install -r requirements.txt
-<<<<<<< Updated upstream
+      #       # Activate virtual environment or create if doesn't exist
+      #       if [ ! -d "venv" ]; then
+      #         python3 -m venv venv
+      #       fi
+      #       source venv/bin/activate
             
-            # Restart application using PM2 (or systemd)
-            pm2 restart python-app || pm2 start app/main.py --name python-app --interpreter python3
+      #       # Install/update dependencies
+      #       pip install --upgrade pip
+      #       pip install -r requirements.txt
             
-            echo "Deployment commands executed."
-          EOF
+      #       # Restart application using PM2 (or systemd)
+      #       pm2 restart python-app || pm2 start app/main.py --name python-app --interpreter python3
+            
+      #       echo "Deployment commands executed."
+          
 
       - name: Cleanup
         # Always run cleanup, even if previous steps fail
         if: always()
         run: |
-          # Remove the private key from the runner environment
-          rm -f ~/.ssh/deploy_key.pem
+          # The ssh-agent action handles cleanup automatically.
           rm -f ~/.ssh/known_hosts
 
-      - name: Deployment Status
+      - name: Deployment Status 
         run: |
           echo "🚀 Deployment process completed."
           echo "📅 Deployed at: $(date)" # Use $() for command substitution
           echo "📝 Commit: ${{ github.sha }}"
-=======
-
-            # Install PM2 globally if missing
-            if ! command -v pm2 &> /dev/null; then
-              sudo npm install -g pm2
-            fi
-
-            # Restart or start FastAPI app with PM2
-            APP_NAME="tupri-backend"
-            if pm2 list | grep -q "$APP_NAME"; then
-              pm2 restart "$APP_NAME"
-            else
-              pm2 start "venv/bin/python" --name "$APP_NAME" -- -m uvicorn app.main:app --host 0.0.0.0 --port 8000
-            fi
-
-            pm2 save
-            echo "✅ Deployment successful!"
-          EOF
->>>>>>> Stashed changes
