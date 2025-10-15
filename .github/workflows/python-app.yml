@@ -150,14 +150,12 @@ jobs:
 
             # find uvicorn inside the project's venv
             UVICORN_PATH="$(pwd)/.venv/bin/uvicorn"
+            PY_BIN="$(pwd)/.venv/bin/python"
             echo "Using uvicorn executable at: $UVICORN_PATH"
 
             # Try to restart; if it doesn't exist, start it.
             # Note: `--` separates pm2 options from the process args (app.main:app etc).
-            pm2 restart python-app --update-env || pm2 start "$UVICORN_PATH" --name "python-app" -- app.main:app --host 0.0.0.0 --port 8000
-
-            # # Ensure pm2 startup hooks are created (systemd). Safe to run repeatedly.
-            # pm2 startup systemd --username "$(whoami)" --hp "$(eval echo ~$USER)" || true
+            pm2 start "$UVICORN_PATH" --name "python-app" --interpreter "$PY_BIN" -- app.main:app --host 0.0.0.0 --port 8000
 
             # Save process list so pm2 can resurrect on reboot
             pm2 save
