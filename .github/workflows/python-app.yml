@@ -99,12 +99,6 @@ jobs:
             # Install/update dependencies
             pip install --upgrade pip
             pip install -r requirements.txt
-
-            if ! command -v pm2 &> /dev/null; then
-              curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -
-              sudo apt-get install -y nodejs
-              sudo npm install -g pm2
-            fi
             
             # Restart application using PM2 (or systemd)
             pm2 restart python-app || pm2 start app/main.py --name python-app --interpreter python3
