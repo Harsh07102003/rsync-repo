@@ -149,6 +149,7 @@ jobs:
             PM2_PATH=$(which pm2)
             if [ -z "$PM2_PATH" ]; then
               echo "::error::pm2 executable not found on the remote server!"
+              echo "$PM2_PATH"
               exit 1
             fi
 
