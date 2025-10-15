@@ -89,6 +89,13 @@ jobs:
             set -e # Exit immediately if any command fails
             
             cd ${{ vars.REMOTE_PATH }}
+
+            if ! command -v pm2 &> /dev/null; then
+              echo "⚙️ PM2 not found. Installing..."
+              sudo apt update -y
+              sudo apt install -y nodejs npm
+              sudo npm install -g pm2
+            fi
             
             # Activate virtual environment or create if doesn't exist
             if [ ! -d "venv" ]; then
@@ -98,7 +105,9 @@ jobs:
             
             # Install/update dependencies
             pip install --upgrade pip
-            pip install -r requirements.txt
+            if [ -f "requirements.txt" ]; then
+              pip install -r requirements.txt
+            fi
             
             # Restart application using PM2 (or systemd)
             # pm2 restart python-app || pm2 start app/main.py --name python-app --interpreter python3
