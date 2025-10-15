@@ -16,27 +16,24 @@ jobs:
 
       - name: Setup SSH
         run: |
-          # 1. Create .ssh directory if it doesn't exist
           mkdir -p ~/.ssh
-          
-          # 2. Write the private key from secrets to a file
-          # The key variable name MUST match what you stored in GitHub Secrets
-          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/deploy_key.pem
-          
-          # 3. Set restrictive permissions for security
+          # Ensure the secret is correct and free of leading/trailing whitespace
+          echo "${{ secrets.EC2_SSH_KEY }}" | tr -d '\r' > ~/.ssh/deploy_key.pem
           chmod 600 ~/.ssh/deploy_key.pem
-          
-          # 4. Add the EC2 host key to known_hosts to bypass manual confirmation
-          # This requires the host secret to be correctly set.
+          # Check if host is provided before keyscan
+          if [ -z "${{ secrets.EC2_HOST }}" ]; then
+            echo "::error::EC2_HOST secret is empty. Cannot perform ssh-keyscan."
+            exit 1
+          fi
           ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
-          
-          # NOTE: Removed 'cat ~/.ssh/deploy_key.pem' for security reasons.
-          # You should not print private keys to the log.
 
       - name: Test SSH Connection
-        # This is the step that was failing due to improper substitution or setup.
-        # Ensure your secrets EC2_USER and EC2_HOST are correctly set.
+        # This command MUST resolve to ssh -i ... user@host "..."
         run: |
+          if [ -z "${{ secrets.EC2_USER }}" ] || [ -z "${{ secrets.EC2_HOST }}" ]; then
+            echo "::error::EC2_USER or EC2_HOST secret is empty. SSH command will fail."
+            exit 1
+          fi
           ssh -i ~/.ssh/deploy_key.pem -o StrictHostKeyChecking=no \
             ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "echo 'SSH connection successful!'"
 
