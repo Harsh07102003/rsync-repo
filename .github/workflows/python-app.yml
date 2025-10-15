@@ -82,23 +82,6 @@ jobs:
             ./ \
             ${{ vars.EC2_USER }}@${{ secrets.EC2_HOST }}:${{ vars.REMOTE_PATH }}/
 
-      - name: Ensure PM2 is installed on EC2
-        run: |
-          ssh -o StrictHostKeyChecking=no ${{ vars.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
-            set -e
-            # Install Node.js if missing
-            if ! command -v node &> /dev/null; then
-              curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-              sudo apt-get install -y nodejs
-            fi
-
-            # Install PM2 globally if missing
-            if ! command -v pm2 &> /dev/null; then
-              sudo npm install -g pm2
-            fi
-            echo "✅ Node.js and PM2 are installed."
-          EOF
-
       - name: Install dependencies and restart application
         run: |
           ssh -o StrictHostKeyChecking=no \
@@ -116,9 +99,19 @@ jobs:
             # Install/update dependencies
             pip install --upgrade pip
             pip install -r requirements.txt
+
+            if ! command -v node > /dev/null 2>&1; then
+              curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+              sudo apt-get install -y nodejs
+            fi
+
+            if ! command -v pm2 > /dev/null 2>&1; then
+              sudo npm install -g pm2
+            fi
             
             # Restart application using PM2 (or systemd)
             pm2 restart python-app || pm2 start app/main.py --name python-app --interpreter python3
+            pm2 save
             
             echo "Deployment commands executed."
           
