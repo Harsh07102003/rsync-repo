@@ -90,7 +90,7 @@ jobs:
 
           echo "🔧 Setting up Python environment..."
           if [ ! -d "venv" ]; then
-            python3.11 -m venv venv
+            python3 -m venv venv
           fi
           source venv/bin/activate
 
