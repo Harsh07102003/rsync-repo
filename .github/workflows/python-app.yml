@@ -107,7 +107,7 @@ jobs:
             fi
             
             # Restart application using PM2 (or systemd)
-            pm2 restart python-app || pm2 start app/main.py --name python-app --interpreter python3
+            # pm2 restart python-app || pm2 start app/main.py --name python-app --interpreter python3
             pm2 save
             
             echo "Deployment commands executed."
