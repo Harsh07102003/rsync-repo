@@ -1,46 +1,71 @@
-name: Deploy FastAPI App to EC2
+name: Deploy Python App to EC2 using PM2
 
 on:
   push:
     branches:
-      - main  # Trigger when code is pushed to main branch
+      - main  # deploys when main branch is updated
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up SSH key
-        run: |
-          sudo apt-get update && sudo apt-get install -y rsync openssh-client
-          mkdir -p ~/.ssh
-          echo "${{ secrets.EC2_SSH_KEY }}" | sed 's/\\n/\n/g' > ~/.ssh/temp_key
-          chmod 600 ~/.ssh/temp_key
-          eval "$(ssh-agent -s)"
-          ssh-add ~/.ssh/temp_key
+      - name: Install rsync and ssh
+        run: sudo apt-get update && sudo apt-get install -y rsync openssh-client
 
-      - name: Test SSH Connection
+      - name: Deploy to EC2
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+          REMOTE_PATH: ${{ secrets.REMOTE_PATH }}
         run: |
-          ssh -o StrictHostKeyChecking=no -i ~/.ssh/temp_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "echo ✅ SSH connection successful"
+          echo "$EC2_SSH_KEY" > private_key.pem
+          chmod 600 private_key.pem
 
-      - name: Sync code to EC2
-        run: |
           echo "Syncing code to EC2..."
           rsync -avz --delete \
             --exclude='.git/' \
             --exclude='venv/' \
             --exclude='.github/' \
             --exclude='__pycache__/' \
-            -e "ssh -i ~/.ssh/temp_key -o StrictHostKeyChecking=no" \
-            ./ ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:${{ secrets.REMOTE_PATH }}
+            -e "ssh -i private_key.pem -o StrictHostKeyChecking=no" \
+            ./ $EC2_USER@$EC2_HOST:$REMOTE_PATH
 
-      - name: Restart FastAPI app using PM2
-        run: |
-          ssh -i ~/.ssh/temp_key -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "
-            cd ${{ secrets.REMOTE_PATH }} &&
-            source venv/bin/activate &&
-            pm2 restart all || pm2 start main.py --name fastapi-app --interpreter python3
-          "
+          echo "Installing dependencies and restarting app with PM2..."
+          ssh -i private_key.pem -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST << 'EOF'
+            set -e
+            cd $REMOTE_PATH
+
+            # Ensure Python 3.11 and pm2 are installed
+            sudo apt-get update -y
+            sudo apt-get install -y python3.11 python3.11-venv python3-pip
+
+            # Setup virtual environment if not exists
+            if [ ! -d "venv" ]; then
+              python3.11 -m venv venv
+            fi
+
+            source venv/bin/activate
+            pip install --upgrade pip
+            pip install -r requirements.txt
+
+            # Install PM2 globally if missing
+            if ! command -v pm2 &> /dev/null; then
+              sudo npm install -g pm2
+            fi
+
+            # Restart or start FastAPI app with PM2
+            APP_NAME="tupri-backend"
+            if pm2 list | grep -q "$APP_NAME"; then
+              pm2 restart "$APP_NAME"
+            else
+              pm2 start "venv/bin/python" --name "$APP_NAME" -- -m uvicorn app.main:app --host 0.0.0.0 --port 8000
+            fi
+
+            pm2 save
+            echo "✅ Deployment successful!"
+          EOF
