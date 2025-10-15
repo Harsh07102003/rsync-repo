@@ -100,22 +100,16 @@ jobs:
             pip install --upgrade pip
             pip install -r requirements.txt
 
-            if ! command -v node > /dev/null 2>&1; then
+            if ! command -v pm2 &> /dev/null; then
+              echo "📦 Installing Node.js and PM2..."
               curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
               sudo apt-get install -y nodejs
-            fi
-
-            if ! command -v pm2 > /dev/null 2>&1; then
               sudo npm install -g pm2
             fi
             
             # Restart application using PM2 (or systemd)
-            if pm2 list | grep -q "$APP_NAME"; then
-                pm2 restart "python-app"
-            else
-                pm2 start venv/bin/python3 --name "python-app" -- -m uvicorn "app/main.py" --host 0.0.0.0 --port 8000
-            fi
-
+            pm2 restart python-app || pm2 start app/main.py --name python-app --interpreter python3
+            
             echo "Deployment commands executed."
           
 
