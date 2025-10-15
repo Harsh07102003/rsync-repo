@@ -142,7 +142,6 @@ jobs:
               
               # Go to the project directory. This is crucial for all subsequent commands.
               cd \"${{ vars.REMOTE_PATH }}\"
-
               echo \"Restarting application with PM2...\"
 
               # First, delete the old process definition to ensure a clean start.
