@@ -95,16 +95,16 @@ jobs:
               python3 -m venv venv
             fi
             source venv/bin/activate
+            
+            # Install/update dependencies
+            pip install --upgrade pip
+            pip install -r requirements.txt
 
             # Check if pm2 is installed
             if ! command -v pm2 >/dev/null 2>&1; then
               echo "PM2 not found. Installing globally..."
               npm install -g pm2
             fi
-            
-            # Install/update dependencies
-            pip install --upgrade pip
-            pip install -r requirements.txt
             
             # Restart application using PM2 (or systemd)
             pm2 restart python-app || pm2 start app/main.py --name python-app --interpreter python3
