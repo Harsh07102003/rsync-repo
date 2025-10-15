@@ -100,14 +100,20 @@ jobs:
             pip install --upgrade pip
             pip install -r requirements.txt
 
-            # Check if pm2 is installed
-            if ! command -v pm2 >/dev/null 2>&1; then
-              echo "PM2 not found. Installing globally..."
-              npm install -g pm2
+            if ! command -v pm2 &> /dev/null; then
+              echo "PM2 not found. Installing Node.js and PM2..."
+              # Install Node.js (LTS)
+              curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -
+              sudo apt-get install -y nodejs
+              sudo npm install -g pm2
+              echo "PM2 installed"
+            else
+              echo "PM2 already installed"
             fi
             
             # Restart application using PM2 (or systemd)
             pm2 restart python-app || pm2 start app/main.py --name python-app --interpreter python3
+            pm2 save
             
             echo "Deployment commands executed."
           
