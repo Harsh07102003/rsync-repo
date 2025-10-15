@@ -90,10 +90,24 @@ jobs:
             
             cd ${{ vars.REMOTE_PATH }}
             
+            # Ensure Python 3.11 is installed via the deadsnakes PPA
+            # This requires the EC2_USER to have passwordless sudo privileges.
+            echo "Ensuring Python 3.11 is installed..."
+            sudo apt-get update -y
+            sudo apt-get install -y software-properties-common
+            sudo add-apt-repository -y ppa:deadsnakes/ppa
+            sudo apt-get install -y python3.11 python3.11-venv
+            
+            # Ensure Node.js and npm are installed to get PM2
+            # This is a common way to install a recent version of Node.js.
+            echo "Ensuring Node.js and PM2 are installed..."
+            sudo apt-get install -y nodejs npm
+            sudo npm install -g pm2
+            
             # Activate virtual environment or create if doesn't exist
             if [ ! -d "venv" ]; then
               echo "Creating Python virtual environment..."
-              python3 -m venv venv
+              python3.11 -m venv venv
             fi
             
             # Install/update dependencies
@@ -103,14 +117,15 @@ jobs:
             
             # Use system PM2 to start/restart the app with the venv python interpreter
             # This avoids issues with activating the venv in a non-interactive shell.
-            echo "Restarting application with PM2..."
-            bash
+            echo "Restarting application with system PM2..."
+            which pm2
+            # The 'pm2 start' command below uses the system-wide PM2 but specifies the Python interpreter from your project's 'venv'.
             pm2 restart python-app || pm2 start "venv/bin/python" --name "python-app" -- -m uvicorn app.main:app --host 0.0.0.0 --port 8000
             
             # Save the PM2 process list to resurrect on reboot
             pm2 save
             echo "Deployment commands executed."
-      
+          '
 
 
       - name: Cleanup
