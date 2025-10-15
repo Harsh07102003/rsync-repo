@@ -14,7 +14,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install rsync and ssh
-        run: sudo apt-get update && sudo apt-get install -y rsync openssh-client
+        run: sudo apt-get update && sudo apt-get install -y rsync openssh-client nodejs npm
 
       - name: Deploy to EC2
         env:
@@ -23,30 +23,29 @@ jobs:
           EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
           REMOTE_PATH: ${{ secrets.REMOTE_PATH }}
         run: |
-          # Save SSH key correctly
-          mkdir -p ~/.ssh
-          printf "%s\n" "$EC2_SSH_KEY" > ~/.ssh/private_key.pem
-          chmod 600 ~/.ssh/private_key.pem
+          # Save SSH key
+          echo "$EC2_SSH_KEY" > private_key.pem
+          chmod 600 private_key.pem
 
-          echo "🔹 Testing SSH connection..."
-          ssh -o StrictHostKeyChecking=no -i ~/.ssh/private_key.pem $EC2_USER@$EC2_HOST "echo '✅ SSH connected successfully'"
+          # Test SSH
+          ssh -i private_key.pem -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST "echo '✅ SSH connected successfully'"
 
-          echo "🔹 Syncing code to EC2..."
+          # Rsync code
           rsync -avz --delete \
             --exclude='.git/' \
             --exclude='venv/' \
             --exclude='.github/' \
             --exclude='__pycache__/' \
-            -e "ssh -i ~/.ssh/private_key.pem -o StrictHostKeyChecking=no" \
+            -e "ssh -i private_key.pem -o StrictHostKeyChecking=no" \
             ./ $EC2_USER@$EC2_HOST:$REMOTE_PATH
 
-          echo "🔹 Installing dependencies and restarting app with PM2..."
-          ssh -i ~/.ssh/private_key.pem -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST << 'EOF'
+          # Deploy on EC2
+          ssh -i private_key.pem -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST bash -s <<EOF
             set -e
             cd $REMOTE_PATH
 
             sudo apt-get update -y
-            sudo apt-get install -y python3.11 python3.11-venv python3-pip nodejs npm
+            sudo apt-get install -y python3.11 python3.11-venv python3-pip
 
             if [ ! -d "venv" ]; then
               python3.11 -m venv venv
@@ -69,4 +68,4 @@ jobs:
 
             pm2 save
             echo "✅ Deployment successful!"
-          EOF
+            EOF
