@@ -110,7 +110,6 @@ jobs:
             # Restart application using PM2 (or systemd)
             pm2 restart python-app || pm2 start uvicorn --name python-app --interpreter python3 -- app/main.py --host 0.0.0.0 --port 8000
             pm2 save
-            sudo env PATH=$PATH:/usr/bin pm2 startup systemd -u $USER --hp /home/$USER
             echo "Deployment commands executed."
           
 
