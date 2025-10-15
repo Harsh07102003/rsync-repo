@@ -154,7 +154,7 @@ jobs:
 
             # Try to restart; if it doesn't exist, start it.
             # Note: `--` separates pm2 options from the process args (app.main:app etc).
-            pm2 start "$UVICORN_PATH" --name "python-app" -- app.main:app --host 0.0.0.0 --port 8000
+            pm2 start "$UVICORN_PATH" --name "python-app" -- ./app/app.main:app --host 0.0.0.0 --port 8000
 
             # Save process list so pm2 can resurrect on reboot
             pm2 save
