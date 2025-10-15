@@ -82,49 +82,28 @@ jobs:
             ./ \
             ${{ vars.EC2_USER }}@${{ secrets.EC2_HOST }}:${{ vars.REMOTE_PATH }}/
 
-      - name: Install dependencies and restart FastAPI with PM2
-        run: |
-          ssh -o StrictHostKeyChecking=no ${{ vars.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
-          set -e
-          cd ${{ vars.REMOTE_PATH }}
-
-          echo "🔧 Setting up Python environment..."
-          if [ ! -d "venv" ]; then
-            python3 -m venv venv
-          fi
-          source venv/bin/activate
-
-          echo "📦 Installing Python dependencies..."
-          pip install --upgrade pip
-          pip install -r requirements.txt
-
-          echo "🟩 Checking Node.js and PM2..."
-          if ! command -v node &> /dev/null; then
-            echo "Installing Node.js..."
-            curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
-            sudo apt-get install -y nodejs
-          fi
-
-          if ! command -v pm2 &> /dev/null; then
-            echo "Installing PM2 globally..."
-            sudo npm install -g pm2
-          fi
-
-          echo "🚀 Starting FastAPI app with PM2..."
-          APP_PATH="app/main.py"
-          APP_NAME="fastapi-app"
-
-          # Start FastAPI with Uvicorn via PM2 (better production approach)
-          if pm2 list | grep -q "$APP_NAME"; then
-            pm2 restart "$APP_NAME"
-          else
-            pm2 start "venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 8000" --name "$APP_NAME"
-          fi
-
-          pm2 save
-          echo "✅ Deployment completed successfully!"
-          EOF
-
+      # - name: Install dependencies and restart application
+      #   run: |
+      #     ssh -o StrictHostKeyChecking=no \
+      #       ${{ vars.EC2_USER }}@${{ secrets.EC2_HOST }} '
+      #       set -e # Exit immediately if any command fails
+            
+      #       cd ${{ vars.REMOTE_PATH }}
+            
+      #       # Activate virtual environment or create if doesn't exist
+      #       if [ ! -d "venv" ]; then
+      #         python3 -m venv venv
+      #       fi
+      #       source venv/bin/activate
+            
+      #       # Install/update dependencies
+      #       pip install --upgrade pip
+      #       pip install -r requirements.txt
+            
+      #       # Restart application using PM2 (or systemd)
+      #       pm2 restart python-app || pm2 start app/main.py --name python-app --interpreter python3
+            
+      #       echo "Deployment commands executed."
           
 
       - name: Cleanup
