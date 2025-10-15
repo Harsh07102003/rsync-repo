@@ -96,7 +96,7 @@ jobs:
             sudo apt-get update -y
             sudo apt-get install -y software-properties-common
             sudo add-apt-repository -y ppa:deadsnakes/ppa
-            sudo apt-get install -y python3.11 python3.11-venv
+            sudo apt-get install -y python3.11 python3.11-venv python3.11-dev python3.11-distutils
             
             # Ensure Node.js and npm are installed to get PM2
             # This is a common way to install a recent version of Node.js.
