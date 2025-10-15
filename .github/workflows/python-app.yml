@@ -23,15 +23,10 @@ jobs:
           SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
           REMOTE_PATH: ${{ secrets.REMOTE_PATH }}
         run: |
+          sudo apt-get update && sudo apt-get install -y rsync openssh-client
           mkdir -p ~/.ssh
-          chmod 700 ~/.ssh
-          echo "$SSH_KEY" > ~/.ssh/private_key.pem
-          chmod 600 ~/.ssh/deploy_key.pem
-
-          ssh-keyscan -H $EC2_HOST >> ~/.ssh/known_hosts 2>/dev/null || true
-
-          echo "Testing SSH connection..."
-          ssh -i private_key.pem -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST "echo '✅ Connected successfully'"
+          echo "$EC2_SSH_KEY" > ~/.ssh/temp_key
+          chmod 600 ~/.ssh/temp_key
 
           echo "Syncing code to EC2..."
           rsync -avz --delete \
