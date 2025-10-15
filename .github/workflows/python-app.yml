@@ -141,13 +141,27 @@ jobs:
             cd ${{ vars.REMOTE_PATH }}
 
             echo "Restarting application with system PM2..."
+            # Find the full path to the pm2 executable. This is more reliable than relying on the shell's PATH.
+            PM2_PATH=$(which pm2)
+            if [ -z "$PM2_PATH" ]; then
+              echo "::error::pm2 executable not found on the remote server!"
+              exit 1
+            fi
+
             # Use the system-wide PM2 to run the app with the Python interpreter from the project's venv.
-            pm2 restart python-app || pm2 start "venv/bin/python" --name "python-app" -- -m uvicorn app.main:app --host 0.0.0.0 --port 8000
+            $PM2_PATH restart python-app || $PM2_PATH start "venv/bin/python" --name "python-app" -- -m uvicorn app.main:app --host 0.0.0.0 --port 8000
 
             # Save the PM2 process list to resurrect on reboot
-            pm2 save
+            $PM2_PATH save
             echo "Deployment commands executed."
           '
+
+      - name: 4. Verify Deployment Health
+        run: |
+          echo "Pinging the health check endpoint..."
+          # Wait a few seconds for the server to start
+          sleep 5
+          curl --fail http://${{ secrets.EC2_HOST }}:8000/health
 
       - name: Cleanup
         # Always run cleanup, even if previous steps fail
