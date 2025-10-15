@@ -128,8 +128,9 @@ jobs:
 
             # Install/update dependencies
             echo "Installing/updating dependencies..."
-            .venv/bin/pip install --upgrade pip
-            .venv/bin/pip install -r requirements.txt
+            # Use the python from the venv to run pip module, which is the most robust method.
+            .venv/bin/python -m pip install --upgrade pip
+            .venv/bin/python -m pip install -r requirements.txt
             echo "Python environment is ready."
           '
 
