@@ -3,8 +3,8 @@ name: Deploy Python App to EC2
 on:
   push:
     branches:
-      - main  # Change this to your deployment branch
-  workflow_dispatch:  # Allows manual trigger from GitHub UI
+      - main
+  workflow_dispatch:
 
 jobs:
   deploy:
@@ -16,19 +16,34 @@ jobs:
 
       - name: Setup SSH
         run: |
+          # 1. Create .ssh directory if it doesn't exist
           mkdir -p ~/.ssh
+          
+          # 2. Write the private key from secrets to a file
+          # The key variable name MUST match what you stored in GitHub Secrets
           echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/deploy_key.pem
+          
+          # 3. Set restrictive permissions for security
           chmod 600 ~/.ssh/deploy_key.pem
+          
+          # 4. Add the EC2 host key to known_hosts to bypass manual confirmation
+          # This requires the host secret to be correctly set.
           ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
-          cat ~/.ssh/deploy_key.pem
+          
+          # NOTE: Removed 'cat ~/.ssh/deploy_key.pem' for security reasons.
+          # You should not print private keys to the log.
 
       - name: Test SSH Connection
+        # This is the step that was failing due to improper substitution or setup.
+        # Ensure your secrets EC2_USER and EC2_HOST are correctly set.
         run: |
-          ssh -i ~/.ssh/deploy_key.pem -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "echo 'SSH connection successful!'"
+          ssh -i ~/.ssh/deploy_key.pem -o StrictHostKeyChecking=no \
+            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "echo 'SSH connection successful!'"
 
       - name: Create remote directory
         run: |
-          ssh -i ~/.ssh/deploy_key.pem -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "mkdir -p ${{ vars.REMOTE_PATH }}"
+          ssh -i ~/.ssh/deploy_key.pem -o StrictHostKeyChecking=no \
+            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "mkdir -p ${{ vars.REMOTE_PATH }}"
 
       - name: Sync code to EC2 using rsync
         run: |
@@ -46,7 +61,11 @@ jobs:
 
       - name: Install dependencies and restart application
         run: |
-          ssh -i ~/.ssh/deploy_key.pem -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+          # The '<< 'EOF'' syntax allows running multiple commands on the remote server
+          ssh -i ~/.ssh/deploy_key.pem -o StrictHostKeyChecking=no \
+            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+            set -e # Exit immediately if any command fails
+            
             cd ${{ vars.REMOTE_PATH }}
             
             # Activate virtual environment or create if doesn't exist
@@ -62,92 +81,19 @@ jobs:
             # Restart application using PM2 (or systemd)
             pm2 restart python-app || pm2 start app/main.py --name python-app --interpreter python3
             
-            # Alternative: If using systemd instead of PM2
-            # sudo systemctl restart your-python-app.service
-            
-            echo "Deployment completed successfully!"
+            echo "Deployment commands executed."
           EOF
 
       - name: Cleanup
+        # Always run cleanup, even if previous steps fail
         if: always()
         run: |
+          # Remove the private key from the runner environment
           rm -f ~/.ssh/deploy_key.pem
+          rm -f ~/.ssh/known_hosts
 
       - name: Deployment Status
         run: |
-          echo "🚀 Deployment completed successfully!"
-          echo "📅 Deployed at: $(date)"
+          echo "🚀 Deployment process completed."
+          echo "📅 Deployed at: $(date)" # Use $() for command substitution
           echo "📝 Commit: ${{ github.sha }}"
-
-
-# name: Deploy Python App to EC2 using PM2
-
-# on:
-#   push:
-#     branches:
-#       - main  # deploys when main branch is updated
-
-# jobs:
-#   deploy:
-#     runs-on: ubuntu-latest
-
-#     steps:
-#       - name: Checkout repository
-#         uses: actions/checkout@v4
-
-#       - name: Install rsync and ssh
-#         run: sudo apt-get update && sudo apt-get install -y rsync openssh-client
-
-#       - name: Deploy to EC2
-#         env:
-#           EC2_HOST: ${{ secrets.EC2_HOST }}
-#           EC2_USER: ${{ secrets.EC2_USER }}
-#           EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
-#           REMOTE_PATH: ${{ secrets.REMOTE_PATH }}
-#         run: |
-#           echo "$EC2_SSH_KEY" > private_key.pem
-#           chmod 600 private_key.pem
-
-#           echo "Syncing code to EC2..."
-#           rsync -avz --delete \
-#             --exclude='.git/' \
-#             --exclude='venv/' \
-#             --exclude='.github/' \
-#             --exclude='__pycache__/' \
-#             -e "ssh -i private_key.pem -o StrictHostKeyChecking=no" \
-#             ./ $EC2_USER@$EC2_HOST:$REMOTE_PATH
-
-#           echo "Installing dependencies and restarting app with PM2..."
-#           ssh -i private_key.pem -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST << 'EOF'
-#             set -e
-#             cd $REMOTE_PATH
-
-#             # Ensure Python 3.11 and pm2 are installed
-#             sudo apt-get update -y
-#             sudo apt-get install -y python3.11 python3.11-venv python3-pip
-
-#             # Setup virtual environment if not exists
-#             if [ ! -d "venv" ]; then
-#               python3.11 -m venv venv
-#             fi
-
-#             source venv/bin/activate
-#             pip install --upgrade pip
-#             pip install -r requirements.txt
-
-#             # Install PM2 globally if missing
-#             if ! command -v pm2 &> /dev/null; then
-#               sudo npm install -g pm2
-#             fi
-
-#             # Restart or start FastAPI app with PM2
-#             APP_NAME="tupri-backend"
-#             if pm2 list | grep -q "$APP_NAME"; then
-#               pm2 restart "$APP_NAME"
-#             else
-#               pm2 start "venv/bin/python" --name "$APP_NAME" -- -m uvicorn app.main:app --host 0.0.0.0 --port 8000
-#             fi
-
-#             pm2 save
-#             echo "✅ Deployment successful!"
-#           EOF
