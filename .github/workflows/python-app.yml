@@ -100,16 +100,12 @@ jobs:
             pip install --upgrade pip
             pip install -r requirements.txt
 
-            # if ! command -v pm2 &> /dev/null; then
-            #   echo "📦 Installing Node.js and PM2..."
-            #   curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-            #   sudo apt-get install -y nodejs
-            #   sudo npm install -g pm2
-            # fi
             
+      - name : Restart application using PM2 (or systemd)
+        run: | 
             # Restart application using PM2 (or systemd)
-            /usr/local/bin/pm2 restart python-app || /usr/local/bin/pm2 start venv/bin/python --name python-app -- -m uvicorn app.main:app --host 0.0.0.0 --port 8000
-            /usr/local/bin/pm2 save
+            pm2 restart python-app || pm2 start venv/bin/python --name python-app -- -m uvicorn app.main:app --host 0.0.0.0 --port 8000
+            pm2 save
             echo "Deployment commands executed."
           
 
