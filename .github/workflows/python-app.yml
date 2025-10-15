@@ -84,7 +84,7 @@ jobs:
 
       - name: Install dependencies and restart application
         run: |
-          ssh -o StrictHostKeyChecking=no \
+          ssh -t -o StrictHostKeyChecking=no \
             ${{ vars.EC2_USER }}@${{ secrets.EC2_HOST }} '
             set -e # Exit immediately if any command fails
             
@@ -100,21 +100,7 @@ jobs:
             pip install --upgrade pip
             pip install -r requirements.txt
 
-            # Install PM2 if missing
-            if ! command -v pm2 &> /dev/null; then
-              curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -
-              sudo apt-get install -y nodejs
-              sudo npm install -g pm2
-            fi
-
-            if pm2 list | grep -q "python-app"; then
-              pm2 restart python-app
-            else
-              pm2 start venv/bin/uvicorn --name python-app -- app.main:app --host 0.0.0.0 --port 8000
-            fi
-            
-            # Restart application using PM2 (or systemd)
-            # pm2 restart python-app || pm2 start app/main.py --name python-app --interpreter python3
+            pm2 start venv/bin/uvicorn --name python-app -- app.main:app --host 0.0.0.0 --port 8000 --update-env
             pm2 save
             
             echo "Deployment commands executed."
