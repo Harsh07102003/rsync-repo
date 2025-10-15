@@ -25,6 +25,8 @@ jobs:
         run: |
           echo "$EC2_SSH_KEY" > private_key.pem
           chmod 600 private_key.pem
+          ssh -i private_key.pem -o StrictHostKeyChecking=no -vvv ubuntu@$EC2_HOST
+
 
           echo "Syncing code to EC2..."
           rsync -avz --delete \
