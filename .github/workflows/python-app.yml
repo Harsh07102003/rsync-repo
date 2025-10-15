@@ -149,7 +149,7 @@ jobs:
 
               # Start the app using the absolute path to the uvicorn executable.
               # The module path '\''app.main:app'\'' is correct because we are now running from the project root.
-              UVICORN_PATH=\"$(pwd)/.venv/bin/uvicorn\"
+              UVICORN_PATH=\"\$(pwd)/.venv/bin/uvicorn\"
               pm2 start \"\$UVICORN_PATH\" --name \"python-app\" -- app.main:app --host 0.0.0.0 --port 8000
 
               # Save the PM2 process list to resurrect on reboot
