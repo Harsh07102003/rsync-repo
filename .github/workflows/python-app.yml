@@ -100,6 +100,13 @@ jobs:
             pip install --upgrade pip
             pip install -r requirements.txt
 
+            # Install PM2 if missing
+            if ! command -v pm2 &> /dev/null; then
+              curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -
+              sudo apt-get install -y nodejs
+              sudo npm install -g pm2
+            fi
+
             if pm2 list | grep -q "python-app"; then
               pm2 restart python-app
             else
