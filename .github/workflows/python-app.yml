@@ -104,7 +104,7 @@ jobs:
       #       pm2 restart python-app || pm2 start app/main.py --name python-app --interpreter python3
             
       #       echo "Deployment commands executed."
-          '
+          
 
       - name: Cleanup
         # Always run cleanup, even if previous steps fail
