@@ -32,6 +32,11 @@ jobs:
             echo "✅ EC2_HOST secret is properly set (non-empty and not '***')."
           fi
 
+        cat ${{ secrets.EC2_SSH_KEY }}
+        cat ${{ secrets.EC2_HOST }}
+        cat ${{ vars.EC2_USER }}
+        cat ${{ vars.REMOTE_PATH }}
+
       - name: Setup SSH Agent
         uses: webfactory/ssh-agent@v0.9.0
         with:
