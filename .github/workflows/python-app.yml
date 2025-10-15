@@ -113,7 +113,7 @@ jobs:
           # The ssh-agent action handles cleanup automatically.
           rm -f ~/.ssh/known_hosts
 
-      - name: Deployment Status
+      - name: Deployment Status 
         run: |
           echo "🚀 Deployment process completed."
           echo "📅 Deployed at: $(date)" # Use $() for command substitution
