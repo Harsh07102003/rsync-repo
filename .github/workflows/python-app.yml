@@ -121,10 +121,9 @@ jobs:
             cd ${{ vars.REMOTE_PATH }}
 
             # Create virtual environment if it does not exist
-            if [ ! -d ".venv" ]; then
-              echo "Creating Python virtual environment..."
-              python3.11 -m venv .venv
-            fi
+             echo "Creating Python virtual environment..."
+             python3.11 -m venv .venv
+
 
             # Install/update dependencies
             echo "Installing/updating dependencies..."
