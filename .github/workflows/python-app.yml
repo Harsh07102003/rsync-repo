@@ -14,10 +14,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Debug Secret Presence
+      - name: Debug Secret Presence (Checking all as secrets)
         run: |
-          # Check if EC2_USER is set
-          if [ -z "${{ vars.EC2_USER }}" ]; then
+          # Use secrets for all authentication parameters for consistency
+          if [ -z "${{ secrets.EC2_USER }}" ]; then
             echo "::error::EC2_USER secret is NOT set or is empty."
             exit 1
           else
@@ -25,13 +25,13 @@ jobs:
           fi
           
           # Check if EC2_HOST is set AND is not the literal placeholder '***'
+          # NOTE: The host must be fixed in your GitHub secrets!
           if [ -z "${{ secrets.EC2_HOST }}" ] || [ "${{ secrets.EC2_HOST }}" = "***" ]; then
-            echo "::error::EC2_HOST secret is NOT set, is empty, or is the placeholder '***'."
+            echo "::error::EC2_HOST secret is NOT set, is empty, or is the placeholder '***'. FIX THIS IN GITHUB SECRETS."
             exit 1
           else
             echo "✅ EC2_HOST secret is properly set (non-empty and not '***')."
           fi
-
 
       - name: Setup SSH
         run: |
@@ -39,7 +39,8 @@ jobs:
           # Ensure the secret is correct and free of leading/trailing whitespace
           echo "${{ secrets.EC2_SSH_KEY }}" | tr -d '\r' > ~/.ssh/deploy_key.pem
           chmod 600 ~/.ssh/deploy_key.pem
-          # Check if host is provided before keyscan
+          
+          # Use the EC2_HOST secret
           if [ -z "${{ secrets.EC2_HOST }}" ]; then
             echo "::error::EC2_HOST secret is empty. Cannot perform ssh-keyscan."
             exit 1
@@ -47,19 +48,16 @@ jobs:
           ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
 
       - name: Test SSH Connection
-        # This command MUST resolve to ssh -i ... user@host "..."
         run: |
-          if [ -z "${{ vars.EC2_USER }}" ] || [ -z "${{ secrets.EC2_HOST }}" ]; then
-            echo "::error::EC2_USER or EC2_HOST secret is empty. SSH command will fail."
-            exit 1
-          fi
+          # Use secrets for both user and host for deployment commands
           ssh -i ~/.ssh/deploy_key.pem -o StrictHostKeyChecking=no \
-            ${{ vars.EC2_USER }}@${{ secrets.EC2_HOST }} "echo 'SSH connection successful!'"
+            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "echo 'SSH connection successful!'"
 
       - name: Create remote directory
         run: |
+          # Use secrets for both user and host for deployment commands
           ssh -i ~/.ssh/deploy_key.pem -o StrictHostKeyChecking=no \
-            ${{ vars.EC2_USER }}@${{ secrets.EC2_HOST }} "mkdir -p ${{ vars.REMOTE_PATH }}"
+            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "mkdir -p ${{ vars.REMOTE_PATH }}"
 
       - name: Sync code to EC2 using rsync
         run: |
