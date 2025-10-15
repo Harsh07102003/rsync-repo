@@ -28,7 +28,7 @@ jobs:
           chmod 600 private_key.pem
 
           echo "🔹 Testing SSH connection..."
-          ssh -i private_key.pem -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST "echo '✅ SSH connected successfully'"
+          ssh -o StrictHostKeyChecking=no -i private_key.pem $EC2_USER@$EC2_HOST "echo '✅ SSH connected successfully'"
 
           echo "🔹 Syncing code to EC2..."
           rsync -avz --delete \
