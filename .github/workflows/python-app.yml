@@ -1,19 +1,24 @@
-name: Deploy Python App to EC2
+name: Deploy Python App to EC2 using PM2
 
 on:
   push:
     branches:
+<<<<<<< Updated upstream
       - main
   workflow_dispatch:
+=======
+      - main  # deploys when main branch is updated
+>>>>>>> Stashed changes
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    
+
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
+<<<<<<< Updated upstream
       - name: Debug Secret Presence (Checking all as secrets)
         run: |
           # Standardized to check EC2_USER as a secret
@@ -45,9 +50,19 @@ jobs:
             exit 1
           fi
           ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
+=======
+      - name: Install rsync and ssh
+        run: sudo apt-get update && sudo apt-get install -y rsync openssh-client
+>>>>>>> Stashed changes
 
-      - name: Test SSH Connection
+      - name: Deploy to EC2
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+          REMOTE_PATH: ${{ secrets.REMOTE_PATH }}
         run: |
+<<<<<<< Updated upstream
           # Use secrets for both user and host for deployment commands
           if [ -z "${{ secrets.EC2_USER }}" ] || [ -z "${{ secrets.EC2_HOST }}" ]; then
             echo "::error::EC2_USER or EC2_HOST secret is empty. SSH command will fail."
@@ -64,18 +79,21 @@ jobs:
 
       - name: Sync code to EC2 using rsync
         run: |
+=======
+          echo "$EC2_SSH_KEY" > private_key.pem
+          chmod 600 private_key.pem
+
+          echo "Syncing code to EC2..."
+>>>>>>> Stashed changes
           rsync -avz --delete \
             --exclude='.git/' \
             --exclude='venv/' \
-            --exclude='__pycache__/' \
-            --exclude='*.pyc' \
-            --exclude='.env' \
             --exclude='.github/' \
-            --exclude='*.log' \
-            -e "ssh -i ~/.ssh/deploy_key.pem -o StrictHostKeyChecking=no" \
-            ./ \
-            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:${{ vars.REMOTE_PATH }}/
+            --exclude='__pycache__/' \
+            -e "ssh -i private_key.pem -o StrictHostKeyChecking=no" \
+            ./ $EC2_USER@$EC2_HOST:$REMOTE_PATH
 
+<<<<<<< Updated upstream
       - name: Install dependencies and restart application
         run: |
           # Use secrets for user
@@ -86,14 +104,26 @@ jobs:
             cd ${{ vars.REMOTE_PATH }}
             
             # Activate virtual environment or create if doesn't exist
+=======
+          echo "Installing dependencies and restarting app with PM2..."
+          ssh -i private_key.pem -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST << 'EOF'
+            set -e
+            cd $REMOTE_PATH
+
+            # Ensure Python 3.11 and pm2 are installed
+            sudo apt-get update -y
+            sudo apt-get install -y python3.11 python3.11-venv python3-pip
+
+            # Setup virtual environment if not exists
+>>>>>>> Stashed changes
             if [ ! -d "venv" ]; then
-              python3 -m venv venv
+              python3.11 -m venv venv
             fi
+
             source venv/bin/activate
-            
-            # Install/update dependencies
             pip install --upgrade pip
             pip install -r requirements.txt
+<<<<<<< Updated upstream
             
             # Restart application using PM2 (or systemd)
             pm2 restart python-app || pm2 start app/main.py --name python-app --interpreter python3
@@ -114,3 +144,22 @@ jobs:
           echo "🚀 Deployment process completed."
           echo "📅 Deployed at: $(date)" # Use $() for command substitution
           echo "📝 Commit: ${{ github.sha }}"
+=======
+
+            # Install PM2 globally if missing
+            if ! command -v pm2 &> /dev/null; then
+              sudo npm install -g pm2
+            fi
+
+            # Restart or start FastAPI app with PM2
+            APP_NAME="tupri-backend"
+            if pm2 list | grep -q "$APP_NAME"; then
+              pm2 restart "$APP_NAME"
+            else
+              pm2 start "venv/bin/python" --name "$APP_NAME" -- -m uvicorn app.main:app --host 0.0.0.0 --port 8000
+            fi
+
+            pm2 save
+            echo "✅ Deployment successful!"
+          EOF
+>>>>>>> Stashed changes
