@@ -20,7 +20,7 @@ jobs:
           echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/deploy_key.pem
           chmod 600 ~/.ssh/deploy_key.pem
           ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
-          cat deploy_key.pem
+          cat ~/.ssh/deploy_key.pem
 
       - name: Test SSH Connection
         run: |
