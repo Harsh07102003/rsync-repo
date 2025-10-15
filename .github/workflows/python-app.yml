@@ -96,11 +96,6 @@ jobs:
             fi
             source venv/bin/activate
 
-            python -m pip install --upgrade pip
-            if [ -f requirements.txt ]; then
-              pip install --no-cache-dir -r requirements.txt
-            fi
-
             # Check if pm2 is installed
             if ! command -v pm2 >/dev/null 2>&1; then
               echo "PM2 not found. Installing globally..."
