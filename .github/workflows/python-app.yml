@@ -84,7 +84,7 @@ jobs:
 
       - name: Install dependencies and restart application
         run: |
-          ssh -t -o StrictHostKeyChecking=no \
+          ssh -o StrictHostKeyChecking=no \
             ${{ vars.EC2_USER }}@${{ secrets.EC2_HOST }} '
             set -e # Exit immediately if any command fails
             
@@ -108,9 +108,9 @@ jobs:
             fi
 
             if pm2 list | grep -q "python-app"; then
-              pm2 restart python-app
+              pm2 restart python-app --update-env
             else
-              pm2 start venv/bin/uvicorn --name python-app -- app.main:app --host 0.0.0.0 --port 8000
+              pm2 start venv/bin/uvicorn --name python-app -- app.main:app --host 0.0.0.0 --port 8000 --update-env
             fi
             
             # Restart application using PM2 (or systemd)
